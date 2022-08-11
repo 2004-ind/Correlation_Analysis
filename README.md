@@ -67,41 +67,21 @@ To use the application you need to install the following dependencies.
   pip install matplotlib
   pip install pathlib
   conda install -c anaconda requests
-  conda install -c jmcmurray json
   conda install -c pyviz hvplot 
   pip install python-dotenv
   pip install alpaca-trade-api
+  pip install altair
+  pip install seaborn
+  pip install streamlit
+  
 ```
-When the installation completes, confirm it by running the following command:
-
-```
-   conda list matplotlib
-   conda list hvplot
-   conda list pathlib
-   conda list requests
-   conda list json
-   conda list python-dotenv
-   conda list alpaca-trade-api
-```   
-
 * Make sure to use hvPlot version 0.7.0 or later.
 ---
 
 
 ## Usage
 
-To use this application just clone the repository and run the **jupyterlab** by running the following command on your terminal:
-
-```jupyterlab```
-
-Upon launching the application  on jupyter lab run the file by clicking on the play button on top of the notebook. 
-
-
-## Usage Examples
-examples of the application or results and summary of the analysis.(To be included)
----
-
-
+To use this application navigate to the application folder and type "streamlit run streamlit_app.py".  The application will open a new window in your default web browser AT http://localhost:8501/.  
 
 
 ## Contributers
