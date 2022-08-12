@@ -6,14 +6,9 @@ import plost
 import seaborn as sns
 import matplotlib.pyplot as plt
 import datetime
-#from datetime import datetime
-import pickle
 import functions
-import hvplot
-import hvplot.pandas
 from io import BytesIO
 import pyautogui
-import alpaca_trade_api as tradeapi
 from MCForecastTools import MCSimulation
 import urllib.request
 import altair as alt
@@ -21,52 +16,38 @@ import altair as alt
 def rerun_script():
 
     pyautogui.hotkey("ctrl","F5")
-    st.experimental_rerun()
+    #st.experimental_rerun()
 
 st.set_option('deprecation.showPyplotGlobalUse', False)  #<-- This disables plot warnings in streamlit
 
 
-if 'list_of_selected_sectors' not in st.session_state:
+if 'list_of_selected_sectors' not in st.session_state: #<-- Determine status of session state variables and set {counter} apprpriately.
 
         list_of_selected_sectors = []
 else:
         list_of_selected_sectors = st.session_state.list_of_selected_sectors
 
-if 'sum' not in st.session_state:
+if 'counter' not in st.session_state:  #<-- the counter variable is used to maintain the session state between iterations.   
 
-        sum = 0
-        st.session_state.sum = sum
+        counter = 0
+        st.session_state.counter = counter
 else:
-        sum = st.session_state.sum
+        counter = st.session_state.counter
         
-if 'sum2' not in st.session_state:
+if 'counter2' not in st.session_state:
 
-    st.session_state.sum2 = 0
+    st.session_state.counter2 = 0
 
 else:
-    if st.session_state.sum2 != 0:
-        st.session_state.sum2 = -1
-  
-
-
-#if 'list_of_selected_sectors' in st.session_state:
-
-#list_of_selected_sectors = []
-
-# Page setting
-
-st.set_page_config(layout="wide")
-
-with open('style.css') as f:
-    test = 'test'
-    #st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    if st.session_state.counter2 != 0:
+        st.session_state.counter2 = -1
+    
 
 # Data  ###################################################
 
 
 # Get yahoo finance data
 
-   # <-- Add tickers here ['MSFT', 'GOOG', 'SPY', 'GLD', 'XLV'] 
 
 tickers_and_data_df = pd.DataFrame({})
 tickers_and_data_df_mc = pd.DataFrame({})
@@ -74,19 +55,9 @@ tickers_and_data_df_mc1 = pd.DataFrame({})
 
 # Iterate through list of yahoo tickers and append to dataframe
 
-#for ticker in list_of_tickers_for_yahoo_data_dump:
-    
-    #single_ticker_df = functions.get_df_from_yahoo_finance(ticker)
-    #tickers_and_data_df = pd.concat([tickers_and_data_df, single_ticker_df])
+# Get Monthly Data from EconDB 
 
-
-
-stocks = pd.read_csv('https://raw.githubusercontent.com/dataprofessor/data/master/stocks_toy.csv')
-
-
-# Get Data from EconDB
-
-#import house price index (for single family homes across US)
+#import house price index from EconDB (for single family homes across US)
 
 house_price_df = pd.read_csv('https://www.econdb.com/api/series/HOUUS/?format=csv', index_col='Date', parse_dates=['Date'])
 
@@ -105,7 +76,7 @@ money_supply_df = pd.read_csv('https://www.econdb.com/api/series/M3US/?format=cs
 
 
 
-#add columns to imitate yahoo df
+#Reformat EconDB data to look like yahoo finance data.
 
 cpi_df['Ticker'] = 'CPI'
 cpi_df['Open'] = cpi_df['CPIUS']
@@ -155,22 +126,24 @@ money_supply_df['Date'] = money_supply_df['Date'].dt.date
 
 ####################################################################
     
-# Add sidebar
+# Page setting
+
+st.set_page_config(layout="wide")
+
+# Add main navigation Sidebar
 
 with st.sidebar:
     
     st.sidebar.markdown("<center><h1 style= text-align: center; color: black;>Please Select Industries</center>", unsafe_allow_html=True)
-
-      
+ 
     with st.form(key='sector_selector'):
-            
             
             left, right = st.columns(2)
             option = [0] * 16
 
             with left: 
 
-                option[0] = [st.checkbox('S&P 500 ETF'), 'SPY']
+                option[0] = [st.checkbox('S&P 500 ETF'), 'SPY']  #<-- These are the industry selector options.  [1] variable is yahoo ticker symbol.
                 option[1] = [st.checkbox('Gold ETF'), 'GLD']
                 option[2] = [st.checkbox('Volatility Index'), '^VIX']
                 option[3] = [st.checkbox('Nasdaq Index'), 'QQQ']
@@ -200,14 +173,12 @@ with st.sidebar:
             
             slider_range = st.slider("Select Date Range", value=[start_date, end_date])
 
+            banned_ticker_list = ['CC', 'CPIUS', 'Fed_Rates', 'M3', 'CPI', 'CONFUS']    # <--Tickers to ignore in later functions
 
             i = 0
-
-            banned_ticker_list = ['CC', 'CPIUS', 'Fed_Rates', 'M3', 'CPI', 'CONFUS']
-            
             for item in option:
 
-                    sum = sum + option[i][0]
+                    counter = counter + option[i][0]
 
                     if (option[i][0] is True) and (option[1][1] != True):
 
@@ -222,11 +193,11 @@ with st.sidebar:
 
                 if sector not in banned_ticker_list:
             
-                    single_ticker_df = functions.get_df_from_yahoo_finance(sector) #Make Yahoo data call based on selections
+                    single_ticker_df = functions.get_df_from_yahoo_finance(sector)              #<-- Make Yahoo data call based on selections
                     tickers_and_data_df = pd.concat([tickers_and_data_df, single_ticker_df])
 
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3 = st.columns(3)  #<-- Only way to center objects in Streamlit.
 
             with col1:
                 pass
@@ -237,22 +208,22 @@ with st.sidebar:
          
 
     col1 = st.columns(1)
+
+    
     weights = {}
-    if sum != 0:
-         with st.expander("Monte Carlo", expanded=False):
+    if counter != 0:
+         with st.expander("Monte Carlo", expanded=False): #<-- Only display monte carlo expander in second iteration after tickers are selected.
              with st.form(key='monte_carlo'):
-                 year_selectbox = st.selectbox(
-                     'Select Number Of Years',
-                     ['<none>',5,10,15,20])
+                 year_selectbox = st.selectbox('Select Number Of Years', ['<none>',5,10,15,20])
                  
+
                  i = 0
-                 
-                 
                  for sector in list_of_selected_sectors:
                      if sector not in banned_ticker_list:
                          
                          weights[i] = st.slider(f'Select weight for {sector}', min_value=1.0, max_value=100.0, value=1.0)
-                     i = i +1
+                         
+                     i = i + 1
                      
                  col1, col2, col3 = st.columns(3)
 
@@ -263,23 +234,20 @@ with st.sidebar:
                  with col2:
                      submit_button = st.form_submit_button(label='Run Monte Carlo')
                  
-         
-            
-
     else:
 
          pass
         
     
-    if st.session_state.sum != 0:
-        if st.session_state.sum != -1:
-            sum = st.session_state.sum
+    if st.session_state.counter != 0:
+        if st.session_state.counter != -1:
+            counter = st.session_state.counter
 
-    if sum != 0:
+    if counter != 0:
         
         if year_selectbox != '<none>':
 
-                sum = -1
+                counter = -1
 
 
 
@@ -289,20 +257,12 @@ with st.sidebar:
 
 
     
-if sum == -1: #Run the monte carlo
-        
-    
-    #def run_monte_carlo(sum):
+if counter == -1:    #Run the monte carlo
 
               
         st.markdown("<h1 style='text-align: center; color: black;'>Monte Carlo</h1>", unsafe_allow_html=True)
         st.write('')
         st.markdown("<h1 style='text-align: center; color: black;'>Please Wait While Monte Carlo Runs</h1>", unsafe_allow_html=True)
-        #st.write(list_of_selected_sectors)
-        #st.write(f"the sum is {sum}")
-        #st.markdown("<h0 style='text-align: center; color: black; font-size: 15pt;'>To run the monte carlo please weight the.\
-                 # sectors in your portfolio.</h0>", unsafe_allow_html=True)
-        #st.session_state.sum2 = -1
 
         # Set timeframe to 1Day
 
@@ -322,25 +282,30 @@ if sum == -1: #Run the monte carlo
         
 
         # Build Yahoo finance URL for the data request.
+        
         i=0
         for sector in list_of_selected_sectors:
 
             if sector == '^VIX':
                     list_of_selected_sectors[i] = 'VIX'
                     #st.write(option[i][1])
-            i=i+1       
-        i = 0
+            i=i+1
+            
+        i=0
         while i < 16:
             sector = option[i][1]
             if sector not in banned_ticker_list:
                 
                 single_ticker_df = functions.get_df_from_yahoo_finance_by_day(sector) #Make Yahoo data call based on selections
                 tickers_and_data_df = pd.concat([tickers_and_data_df, single_ticker_df])
-            i = i+1 
+                
+            i = i+1
+            
 
         tickers_and_data_df = tickers_and_data_df.rename(columns={'Close': 'close'})
-        #st.write(tickers_and_data_df)
-
+       
+        # Manually concatenating data to shape it for monte carlo.  <-- TODO: Change this to dynamic
+        
         VHT = tickers_and_data_df[tickers_and_data_df['Ticker']=='VHT'].drop('Ticker', axis=1).set_index('Date')
         XLE = tickers_and_data_df[tickers_and_data_df['Ticker']=='XLE'].drop('Ticker', axis=1).set_index('Date')
         QQQ = tickers_and_data_df[tickers_and_data_df['Ticker']=='QQQ'].drop('Ticker', axis=1).set_index('Date')
@@ -358,72 +323,81 @@ if sum == -1: #Run the monte carlo
 
         list_of_selected_sectors2 = list_of_selected_sectors.copy()
         
-        i=0
-        
-        
+
+    
         for sector in list_of_selected_sectors2:
             
             if sector in banned_ticker_list:
                 
-                list_of_selected_sectors = list_of_selected_sectors2.remove(sector)
-         
-                
-            
-        #st.write(list_of_selected_sectors2)
-        i=i+1       
-        sector_list = str(list_of_selected_sectors2)
+                list_of_selected_sectors = list_of_selected_sectors2.remove(sector) 
 
+             
+        sector_list = str(list_of_selected_sectors2)
         separator = ", "
         sector_list_no_quotes = separator.join(list_of_selected_sectors2)
         sector_list_no_quotes = sector_list_no_quotes.replace('-','')
-        
-        
-
-        build_df_string = 'portfolio = pd.concat([' + sector_list_no_quotes + '], axis=1, keys=' + sector_list + ').dropna()'
-        #st.write(build_df_string)
-        
+        build_df_string = 'portfolio = pd.concat([' + sector_list_no_quotes + '], axis=1, keys=' + sector_list + ').dropna()'       
         exec(build_df_string)
 
 
-        #st.write(portfolio)
-        i=0
+     
+       
         weight_string = ''
         sum_weights = 0
-        #st.write(type(weights))
 
-        while i < len(weights):
-
-            sum_weights = sum_weights + weights[i]
-            i=i+1
-            
-        #st.write(sum_weights)
+        
+        sum_weights = sum(weights)
+      
         i=0
         while i < len(weights):
 
             weights[i] = weights[i] / sum_weights
             weight_string = weight_string + ',' + str(weights[i])
             i = i+1
-        sum_weights=0
-        i=0
-        while i < len(weights):
+        
+        
 
-            sum_weights = sum_weights + weights[i]
-            i=i+1
-        #st.write(sum_weights)   
+            
         weight_string = weight_string[1:]
         
 
         mc_sim_string = 'mc30_year = MCSimulation(portfolio_data = portfolio, weights=[' + weight_string + '], num_simulation=100, num_trading_days=(252*year_selectbox))'
-        exec(mc_sim_string)
-        #st.write(mc_sim_string)
-        #mc30_year = MCSimulation(portfolio_data = portfolio, weights=[.1, .05, .05, .8], num_simulation=100, num_trading_days=(252*year_selectbox))
+        exec(mc_sim_string) #Set parameters for monte carlo
 
-        mc30_year.calc_cumulative_return()
 
+        mc30_year.calc_cumulative_return() #calculate monte carlo
+        MC_sim_dist_plot = mc30_year.plot_distribution()     
         MC_sim_line_plot = mc30_year.plot_simulation()
-        st.pyplot(MC_sim_line_plot.get_figure())
         MC_summary_statistics = mc30_year.summarize_cumulative_return()
-        st.write(MC_summary_statistics)
+
+        
+        st.pyplot(MC_sim_line_plot.get_figure()) #Render monte carlo plots
+        st.write('')
+
+        col1, col2 = st.columns([2,6])
+
+        with col1:
+            st.write(MC_summary_statistics)
+         
+        with col2:
+            st.pyplot(MC_sim_dist_plot.get_figure())
+            
+        st.markdown(f"<center>The following were used for this analysis: {sector_list_no_quotes}</center>", unsafe_allow_html=True)
+                 
+        col1, col2, col3, col4, col5 = st.columns(5)  #<-- This is how things are centered in Streamlit
+
+        with col1:
+            pass
+        with col2:
+            pass
+        with col3:
+            st.write('')
+            st.button('Reset To Main', on_click=rerun_script)
+        with col4:
+            pass
+        with col5:
+            pass
+
         st.stop()
     
         
@@ -432,9 +406,8 @@ if sum == -1: #Run the monte carlo
 ############################################################################
     
 
-if sum != 0: #Get data if any boxes are checked
+if counter != 0: #Get data if any boxes are checked
         
-    
     
     if 'CC' in list_of_selected_sectors:
 
@@ -454,76 +427,59 @@ if sum != 0: #Get data if any boxes are checked
 
      
 
-   
+    
     tickers_and_data_df['Change'] = tickers_and_data_df['Close'] - tickers_and_data_df['Close'].shift(-1)
     tickers_and_data_df['Pct_Change'] = tickers_and_data_df['Close'].pct_change()
-    
     tickers_and_data_df['Date']=pd.to_datetime(tickers_and_data_df['Date'])
-    
     tickers_and_data_df = tickers_and_data_df.drop_duplicates(subset=['Ticker', 'Date'], keep='last')
 
-   
-    
-    
-    dynamic_start = str(slider_range[0])
+    dynamic_start = str(slider_range[0]) #<-- From sidebar date slider
     dynamic_end = str(slider_range[1])
     date_filter = (tickers_and_data_df['Date']>dynamic_start) & (tickers_and_data_df['Date'] <= dynamic_end)
 
     tickers_and_data_df = tickers_and_data_df.loc[date_filter]
     tickers_and_data_df_mc = tickers_and_data_df
 
-
     pivoted_tickers_and_data_df_ = tickers_and_data_df.pivot(index="Date", columns="Ticker")
     pivoted_tickers_and_data_df = pivoted_tickers_and_data_df_.dropna()
     pivoted_tickers_and_data_df2 = pivoted_tickers_and_data_df
+
     
-#mckenzie test
+    
+#Run mckenzie test
+    
     with st.sidebar:
-    #st.write(sum)
         with st.expander("McKenzie Test", expanded=False):
-            
             with st.form(key='mckenzie_selector'):
+                
                 st.markdown("<center><h1 style= text-align: center; color: black;>Please Select Asset for Mckenzie test</center>", unsafe_allow_html=True)
                 col = st.columns(1)
-                # tickers_and_data_df_mc['Change'] = tickers_and_data_df['Close'] - tickers_and_data_df['Close'].shift(-1)
-                # tickers_and_data_df_mc['Pct_Change'] = tickers_and_data_df['Close'].pct_change()
-                # tickers_and_data_df_mc['Date']=pd.to_datetime(tickers_and_data_df['Date'])
-                #tickers_and_data_df_mc = tickers_and_data_df.drop_duplicates(subset=['Ticker', 'Date'], keep='last')
-                #st.write(tickers_and_data_df_mc)
+               
                 tick = st.text_input('Enter One Ticker', 'SPY')
-                #st.write('Your current ticker is:', tick)
+               
                 single_ticker_df_mc = functions.get_df_from_yahoo_finance(tick)
                 single_ticker_df_mc['Date']=pd.to_datetime(single_ticker_df_mc['Date'])
                 single_ticker_df_mc['Date']=single_ticker_df_mc['Date'].dt.date
                 single_ticker_df_mc['Pct_Change'] = single_ticker_df_mc['Close'].pct_change()
-                st.write(single_ticker_df_mc)
                 tickers_and_data_df_mc['Date'] =pd.to_datetime(tickers_and_data_df_mc['Date'])
                 tickers_and_data_df_mc['Date']=tickers_and_data_df_mc['Date'].dt.date
                 tickers_and_data_df_mc = tickers_and_data_df_mc.drop('Change', axis=1)
-                #st.write(tickers_and_data_df_mc)
-                #single_ticker_df_mc = single_ticker_df_mc.loc[date_filter]
                 tickers_and_data_df_mc1 = pd.concat([tickers_and_data_df_mc, single_ticker_df_mc])
                 tickers_and_data_df_mc1['Date']= pd.to_datetime(tickers_and_data_df_mc1['Date'])
                 tickers_and_data_df_mc1['Date'] = tickers_and_data_df_mc1['Date'].dt.date
                 tickers_and_data_df_mc1 = tickers_and_data_df_mc1.drop_duplicates(subset=['Ticker', 'Date'], keep='last')
-                #st.write(tickers_and_data_df_mc1)
                 pivoted_tickers_and_data_df_mc = tickers_and_data_df_mc1.pivot(index="Date", columns="Ticker")
                 pivoted_tickers_and_data_df_mc = pivoted_tickers_and_data_df_mc.dropna()
-                #st.write(pivoted_tickers_and_data_df_mc)
                 pct_change_mc = pivoted_tickers_and_data_df_mc['Pct_Change']
-                #st.write(pct_change_mc)
                 corr_df_mc = pct_change_mc.corr()
-                #st.write(list_of_selected_sectors)
                 list_of_selected_sectors_mc = list_of_selected_sectors.copy()
                 list_of_selected_sectors_mc.append(tick)
-                #st.write(list_of_selected_sectors_mc)
-                #st.write(list_of_selected_sectors)
                 submit_button = st.form_submit_button(label='Submit')
                 sharpe_dict = functions.sharpe_ratio_calculator_original(list_of_selected_sectors_mc,pct_change_mc)
-                #st.write(sharpe_dict)
                 result = functions.mckenzie_test(list_of_selected_sectors,tick,sharpe_dict, corr_df_mc)
                 st.write(result)
                 st.write('')
+                
         col1, col2, col3 = st.columns(3)
 
         with col1:
@@ -535,7 +491,7 @@ if sum != 0: #Get data if any boxes are checked
             st.button('Reboot App', on_click=rerun_script)
 
             
-if sum == 0: #Welcome page - nothing checked
+if counter == 0: #Welcome page - nothing checked
 
     st.markdown("<h1 style='text-align: center; color: black;'>Welcome To The Zoom Team 6 Correlation Analyzer</h1>", unsafe_allow_html=True)
     st.write()
@@ -545,8 +501,7 @@ if sum == 0: #Welcome page - nothing checked
                   </h0>", unsafe_allow_html=True)
     
 
-if sum == 2:
-
+if counter == 2:  #<-- When only two items are selected, this head to head dashboard is displayed.
 
     st.markdown(f"<center><h0 style='text-align: center; color: black; font-size: 30pt;'>Comparison of {list_of_selected_sectors[0]} and {list_of_selected_sectors[1]}</center></h0>",unsafe_allow_html=True )
 
@@ -571,6 +526,7 @@ if sum == 2:
     with a2:  #2 tickers selected  -- This is bar plot of all periods by correlation
 
         #Render bar plot for 2 ticker correlation analysis
+        
         histogram_data_['Correlation']  = histogram_data_[list_of_selected_sectors[0]].rolling(12).corr(histogram_data_[list_of_selected_sectors[1]])
         fig = plt.figure()
     
@@ -628,37 +584,28 @@ if sum == 2:
 
  
     rolling_beta = rolling_beta.reset_index()
-
     rolling_beta = rolling_beta.dropna()
 
-    
-    
     fig = plt.figure()
 
-    i=0
+    
     bar_plot = []
 
     color = ['navy','turquoise','blue','limegreen','darkgreen','royalblue','green', 'black']
     sns.set()
-    
-    for sector in list_of_selected_sectors:
+
+
+    i=0
+    for sector in list_of_selected_sectors:  #<-- Render beta barplot.  TODO: Fix Legend and Date
     
         bar_plot.append(sns.barplot(data=rolling_beta, x='Date', y=sector, color=color[i]))
         
         i = i + 1
-
-    #st.write(rolling_beta)
     
     plt.xlabel("Date")
     plt.ylabel("βeta")
-
     plt.title("βeta Of Selected Sectors") # You can comment this line out if you don't need title
-
     st.write(fig)
-
-   
-
-
         
     # Row C
     
@@ -669,23 +616,14 @@ if sum == 2:
     sd = sd.T
     sd = sd.reset_index()
     sd.columns =['Ticker','Sharpe']
-    #st.write(list_of_selected_sectors)
-    #st.write(sd)
-    bar_chart_sharpe = alt.Chart(sd).mark_bar().encode(
-        x='Ticker',
-        y='Sharpe',
-    ).properties(
-        title='Sharpe Ratios'
-    )
+    bar_chart_sharpe = alt.Chart(sd).mark_bar().encode(x='Ticker',y='Sharpe',).properties(title='Sharpe Ratios')
     st.altair_chart(bar_chart_sharpe, use_container_width=True)
     
 
-if sum > 2:
+if counter > 2:
 
     
     st.markdown(f"<center><h0 style='text-align: center; color: black; font-size: 30pt;'>Multi Sector Comparison</center></h0>",unsafe_allow_html=True )
-    
-
       
     # Row A
 
@@ -711,7 +649,7 @@ if sum > 2:
         
         
         fig = plt.figure() 
-        box_plot = sns.boxplot(x= plot_data['Ticker'], y=plot_data['Value'], palette="Blues")
+        box_plot = sns.boxplot(x= plot_data['Ticker'], y=plot_data['Value'], palette="Blues")  #<-- Render box plot
         plt.title("Sector Volatility", fontsize=20)
 
         
@@ -720,7 +658,7 @@ if sum > 2:
         st.image(buffer_)                       #Writes image instead of rendering plot, making charts scale properly.
 
 
-    # Row B
+    # Row B  <-- Rolling beta plot
 
     b1 = st.columns(1)
 
@@ -733,14 +671,13 @@ if sum > 2:
         pass
 
     else:
+        
         spy_data = functions.get_df_from_yahoo_finance('SPY')
         spy_data['Change'] = spy_data['Close'] - spy_data['Close'].shift(-1)
         spy_data['Pct_Change'] = 100 * (spy_data['Change'] / spy_data['Close'].shift(-1))
         line_plot_data = pd.concat([line_plot_data, spy_data], axis=0)
         
-    line_plot_data['Date'] = pd.to_datetime(line_plot_data['Date'], infer_datetime_format=True)
-
-                             
+    line_plot_data['Date'] = pd.to_datetime(line_plot_data['Date'], infer_datetime_format=True)                      
     pivoted_plot_data_df = line_plot_data.pivot(index="Date", columns="Ticker")
     pivoted_plot_data_df = pivoted_plot_data_df.dropna()
     
@@ -752,60 +689,38 @@ if sum > 2:
     rolling_beta.index=pd.to_datetime(rolling_beta.index, infer_datetime_format=True)
     rolling_beta = rolling_beta.iloc[::2, :]
     rolling_beta = rolling_beta.iloc[::2, :]
-
- 
     rolling_beta = rolling_beta.reset_index()
-
     rolling_beta = rolling_beta.dropna()
     
-    fig = plt.figure()
 
-    
-
-    i=0
+    fig = plt.figure() #Render rolling beta chart.
     bar_plot = []
-
     color = ['navy','turquoise','blue','limegreen','darkgreen','royalblue','green', 'black', 'yellow', 'orange', 'gray']
     sns.set()
-    
+
+    i=0
     for sector in list_of_selected_sectors:
     
         bar_plot.append(sns.barplot(data=rolling_beta, x='Date', y=sector, color=color[i]))
         i = i + 1
 
-        
-    #st.write(rolling_beta)
-    
     plt.xlabel("Date")
     plt.ylabel("βeta")
-
     plt.title("βeta Of Selected Sectors") 
-    
     st.write(fig)
-
-
 
 
     # Row C
     
     
-
-    
-    pct_change_sharpe_ratio_graph = pivoted_tickers_and_data_df2['Pct_Change']
+    pct_change_sharpe_ratio_graph = pivoted_tickers_and_data_df2['Pct_Change'] #Render Sharp Ratio Bar Chart
     c1 = st.columns(1)
     sd = functions.sharpe_ratio_calculator(list_of_selected_sectors,pct_change_sharpe_ratio_graph)
-    sd=sd.loc[[0]]
+    sd = sd.loc[[0]]
     sd = sd.T
     sd = sd.reset_index()
     sd.columns =['Ticker','Sharpe']
-    #st.write(list_of_selected_sectors)
-    #st.write(sd)
-    bar_chart_sharpe = alt.Chart(sd).mark_bar().encode(
-        x='Ticker',
-        y='Sharpe',
-    ).properties(
-        title='Sharpe Ratios'
-    )
+    bar_chart_sharpe = alt.Chart(sd).mark_bar().encode(x='Ticker',y='Sharpe',).properties(title='Sharpe Ratios')
     st.altair_chart(bar_chart_sharpe, use_container_width=True)
     
     
