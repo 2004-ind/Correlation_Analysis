@@ -341,12 +341,16 @@ if counter == -1:    #Run the monte carlo
 
 
      
-       
+        
         weight_string = ''
         sum_weights = 0
+      
+        i=0
+        while i < len(weights):
 
-        
-        sum_weights = sum(weights)
+            sum_weights = sum_weights + weights[i]
+            i=i+1
+            
       
         i=0
         while i < len(weights):
@@ -354,12 +358,16 @@ if counter == -1:    #Run the monte carlo
             weights[i] = weights[i] / sum_weights
             weight_string = weight_string + ',' + str(weights[i])
             i = i+1
-        
-        
+            
+
+        i=0
+        while i < len(weights):
+
+            sum_weights = sum_weights + weights[i]
+            i=i+1
 
             
         weight_string = weight_string[1:]
-        
 
         mc_sim_string = 'mc30_year = MCSimulation(portfolio_data = portfolio, weights=[' + weight_string + '], num_simulation=100, num_trading_days=(252*year_selectbox))'
         exec(mc_sim_string) #Set parameters for monte carlo
