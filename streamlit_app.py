@@ -341,12 +341,16 @@ if counter == -1:    #Run the monte carlo
 
 
      
-       
+        
         weight_string = ''
         sum_weights = 0
+      
+        i=0
+        while i < len(weights):
 
-        
-        sum_weights = sum(weights)
+            sum_weights = sum_weights + weights[i]
+            i=i+1
+            
       
         i=0
         while i < len(weights):
@@ -354,12 +358,16 @@ if counter == -1:    #Run the monte carlo
             weights[i] = weights[i] / sum_weights
             weight_string = weight_string + ',' + str(weights[i])
             i = i+1
-        
-        
+            
+
+        i=0
+        while i < len(weights):
+
+            sum_weights = sum_weights + weights[i]
+            i=i+1
 
             
         weight_string = weight_string[1:]
-        
 
         mc_sim_string = 'mc30_year = MCSimulation(portfolio_data = portfolio, weights=[' + weight_string + '], num_simulation=100, num_trading_days=(252*year_selectbox))'
         exec(mc_sim_string) #Set parameters for monte carlo
@@ -457,25 +465,25 @@ if counter != 0: #Get data if any boxes are checked
                
                 tick = st.text_input('Enter One Ticker', 'SPY')
                
-                single_ticker_df_mc = functions.get_df_from_yahoo_finance(tick)
+                single_ticker_df_mc = functions.get_df_from_yahoo_finance(tick) #pull data from inputed ticker
                 single_ticker_df_mc['Date']=pd.to_datetime(single_ticker_df_mc['Date'])
                 single_ticker_df_mc['Date']=single_ticker_df_mc['Date'].dt.date
                 single_ticker_df_mc['Pct_Change'] = single_ticker_df_mc['Close'].pct_change()
-                tickers_and_data_df_mc['Date'] =pd.to_datetime(tickers_and_data_df_mc['Date'])
+                tickers_and_data_df_mc['Date'] =pd.to_datetime(tickers_and_data_df_mc['Date'])                                  
                 tickers_and_data_df_mc['Date']=tickers_and_data_df_mc['Date'].dt.date
-                tickers_and_data_df_mc = tickers_and_data_df_mc.drop('Change', axis=1)
-                tickers_and_data_df_mc1 = pd.concat([tickers_and_data_df_mc, single_ticker_df_mc])
+                tickers_and_data_df_mc = tickers_and_data_df_mc.drop('Change', axis=1)  
+                tickers_and_data_df_mc1 = pd.concat([tickers_and_data_df_mc, single_ticker_df_mc]) #combine df with data from main nav
                 tickers_and_data_df_mc1['Date']= pd.to_datetime(tickers_and_data_df_mc1['Date'])
                 tickers_and_data_df_mc1['Date'] = tickers_and_data_df_mc1['Date'].dt.date
-                tickers_and_data_df_mc1 = tickers_and_data_df_mc1.drop_duplicates(subset=['Ticker', 'Date'], keep='last')
+                tickers_and_data_df_mc1 = tickers_and_data_df_mc1.drop_duplicates(subset=['Ticker', 'Date'], keep='last')   
                 pivoted_tickers_and_data_df_mc = tickers_and_data_df_mc1.pivot(index="Date", columns="Ticker")
                 pivoted_tickers_and_data_df_mc = pivoted_tickers_and_data_df_mc.dropna()
                 pct_change_mc = pivoted_tickers_and_data_df_mc['Pct_Change']
-                corr_df_mc = pct_change_mc.corr()
+                corr_df_mc = pct_change_mc.corr()                                                                           
                 list_of_selected_sectors_mc = list_of_selected_sectors.copy()
                 list_of_selected_sectors_mc.append(tick)
                 submit_button = st.form_submit_button(label='Submit')
-                sharpe_dict = functions.sharpe_ratio_calculator_original(list_of_selected_sectors_mc,pct_change_mc)
+                sharpe_dict = functions.sharpe_ratio_calculator_original(list_of_selected_sectors_mc,pct_change_mc) #calculate sharpe ratio for all tickers in df
                 result = functions.mckenzie_test(list_of_selected_sectors,tick,sharpe_dict, corr_df_mc)
                 st.write(result)
                 st.write('')
@@ -547,7 +555,7 @@ if counter == 2:  #<-- When only two items are selected, this head to head dashb
         st.image(buffer_)                       #Writes image instead of rendering plot, making charts scale properly.
         
 
-    # Row B
+    # Row B <---- Rolling Beta Graph
     
     b1 = st.columns(1)
 
@@ -607,13 +615,13 @@ if counter == 2:  #<-- When only two items are selected, this head to head dashb
     plt.title("βeta Of Selected Sectors") # You can comment this line out if you don't need title
     st.write(fig)
         
-    # Row C
+    # Row C <----- Sharpe Ratio Graph
     
     pct_change_sharpe_ratio_graph = pivoted_tickers_and_data_df2['Pct_Change']
     c1 = st.columns(1)
     sd = functions.sharpe_ratio_calculator(list_of_selected_sectors,pct_change_sharpe_ratio_graph)
     sd=sd.loc[[0]]
-    sd = sd.T
+    sd = sd.T # manipulate dictionary to allow it to be read by altair
     sd = sd.reset_index()
     sd.columns =['Ticker','Sharpe']
     bar_chart_sharpe = alt.Chart(sd).mark_bar().encode(x='Ticker',y='Sharpe',).properties(title='Sharpe Ratios')
@@ -625,7 +633,7 @@ if counter > 2:
     
     st.markdown(f"<center><h0 style='text-align: center; color: black; font-size: 30pt;'>Multi Sector Comparison</center></h0>",unsafe_allow_html=True )
       
-    # Row A
+    # Row A <------ Correlation Heat Map
 
     a1, a2= st.columns(2)
 
@@ -710,14 +718,14 @@ if counter > 2:
     st.write(fig)
 
 
-    # Row C
+    # Row C <------- Sharpe Ratio Graph
     
     
     pct_change_sharpe_ratio_graph = pivoted_tickers_and_data_df2['Pct_Change'] #Render Sharp Ratio Bar Chart
     c1 = st.columns(1)
     sd = functions.sharpe_ratio_calculator(list_of_selected_sectors,pct_change_sharpe_ratio_graph)
     sd = sd.loc[[0]]
-    sd = sd.T
+    sd = sd.T # manipulate dictionary to allow it to be read by altair
     sd = sd.reset_index()
     sd.columns =['Ticker','Sharpe']
     bar_chart_sharpe = alt.Chart(sd).mark_bar().encode(x='Ticker',y='Sharpe',).properties(title='Sharpe Ratios')
